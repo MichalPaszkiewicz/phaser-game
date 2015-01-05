@@ -1,0 +1,406 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+	<meta charset="UTF-8" />
+    <title>Phaser - Making your first game, part 9</title>
+	<script type="text/javascript" src="js/phaser.min.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update });
+
+function preload() {
+
+    game.load.image('sky', 'assets/sky.png');
+    game.load.image('ground', 'assets/platform.png');
+    game.load.image('star', 'assets/star.png');
+	game.load.image('firstaid', 'assets/firstaid.png');
+    game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
+	game.load.spritesheet('boss', 'assets/baddie.png', 32, 31);
+	game.load.image('bullet', 'assets/bullet.png');
+	game.load.image('diamond', 'assets/diamond.png');
+}
+
+var player;
+var baddie;
+var platforms;
+var cursors;
+
+var stars;
+var score = 0;
+var scoreText;
+var diamonds;
+var diamondTimer = 800;
+
+var firstaids;
+
+var health = 100;
+var healthText;
+
+var baddieHealth = 1000;
+var baddieHealthText;
+var baddieAmmo = 0;
+var baddieAmmoText;
+var baddieLeft = true;
+
+var bullets;
+
+var timer = 200;
+
+var firstaidTimer = 500;
+
+function create() {
+
+    //  We're going to be using physics, so enable the Arcade Physics system
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+
+    //  A simple background for our game
+    game.add.sprite(0, 0, 'sky');
+
+    //  The platforms group contains the ground and the 2 ledges we can jump on
+    platforms = game.add.group();
+
+    //  We will enable physics for any object that is created in this group
+    platforms.enableBody = true;
+
+    // Here we create the ground.
+    var ground = platforms.create(0, game.world.height - 64, 'ground');
+
+    //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
+    ground.scale.setTo(2, 2);
+
+    //  This stops it from falling away when you jump on it
+    ground.body.immovable = true;
+
+    //  Now let's create two ledges
+    var ledge = platforms.create(400, 400, 'ground');
+    ledge.body.immovable = true;
+
+    ledge = platforms.create(-150, 250, 'ground');
+    ledge.body.immovable = true;
+
+    // The player and its settings
+    player = game.add.sprite(32, game.world.height - 150, 'dude');
+	baddie = game.add.sprite(300, game.world.height - 150, 'boss');
+	
+    //  We need to enable physics on the player
+    game.physics.arcade.enable(player);
+	game.physics.arcade.enable(baddie);
+
+    //  Player physics properties. Give the little guy a slight bounce.
+    player.body.bounce.y = 0.2;
+    player.body.gravity.y = 300;
+    player.body.collideWorldBounds = true;
+	
+	baddie.body.bounce.y = 0.1;
+	baddie.body.gravity.y = 350;
+	baddie.body.collideWorldBounds = true;
+
+    //  Our two animations, walking left and right.
+    player.animations.add('left', [0, 1, 2, 3], 10, true);
+    player.animations.add('right', [5, 6, 7, 8], 10, true);
+	
+	baddie.animations.add('left', [0,1], 10, true);
+	baddie.animations.add('right', [2,3], 10, true);
+	
+    //  Finally some stars to collect
+    stars = game.add.group();
+	
+	firstaids = game.add.group();
+	
+	bullets = game.add.group();
+	
+	diamonds = game.add.group();
+
+    //  We will enable physics for any star that is created in this group
+    stars.enableBody = true;
+
+	firstaids.enableBody = true;
+	
+	bullets.enableBody = true;
+	
+	diamonds.enableBody = true;
+	
+    //  Here we'll create 12 of them evenly spaced apart
+    for (var i = 0; i < 25; i++)
+    {
+        //  Create a star inside of the 'stars' group
+        var star = stars.create(i * 35, 0, 'star');
+
+        //  Let gravity do its thing
+        star.body.gravity.y = 300;
+
+        //  This just gives each star a slightly random bounce value
+        star.body.bounce.y = 0.7 + Math.random() * 0.2;
+    }
+
+    //  The score
+    scoreText = game.add.text(16, 16, 'starPower: 0', { fontSize: '32px', fill: '#000' });
+	healthText = game.add.text(280, 16, 'health: 100', {fontSize: '32px', fill: '#000' });
+	baddieHealthText = game.add.text(500, 16, 'baddieHealth: 1000', {fontSize: '32px', fill: '#000'});
+	baddieAmmoText = game.add.text(500, 50, 'baddieAmmo: 0', {fontSize: '32px', fill: '#000'});
+	
+    //  Our controls.
+    cursors = game.input.keyboard.createCursorKeys();
+    
+}
+
+function update() {
+
+	timer--;
+	firstaidTimer--;
+	diamondTimer--;
+	
+	if(timer <= 0){
+		timer = Math.random() * 200;
+		var star = stars.create(25 * 35 * Math.random(), 0, 'star');
+		star.body.gravity.y = 300;
+		star.body.bounce.y = 0.7 + Math.random() * 0.2;
+	}
+	
+	if(diamondTimer <= 0){
+		diamondTimer = Math.random() * 800;
+		var diamond = diamonds.create(25 * 35 * Math.random(), 0, 'diamond');
+		diamond.body.gravity.y = 500;
+		diamond.body.bounce.y = 0;
+	}
+	
+	if(firstaidTimer <= 0){
+		firstaidTimer = Math.random() * 500;
+		var firstaid = firstaids.create(25 * 35 * Math.random(), 0, 'firstaid');
+		firstaid.body.gravity.y = 300;
+		firstaid.body.bounce.y = 0.7 + Math.random() * 0.2;
+	}
+
+    //  Collide the player and the stars with the platforms
+    game.physics.arcade.collide(player, platforms);
+    game.physics.arcade.collide(stars, platforms);
+	
+	game.physics.arcade.collide(firstaids, platforms);
+	
+	game.physics.arcade.collide(baddie, platforms);
+	
+	game.physics.arcade.collide(bullets, platforms);
+	game.physics.arcade.collide(diamonds, platforms);
+
+    //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
+    game.physics.arcade.overlap(player, stars, collectStar, null, this);
+	game.physics.arcade.overlap(baddie, stars, killStar, null, this);
+	
+	game.physics.arcade.overlap(player, diamonds, collectDiamond, null, this);
+	game.physics.arcade.overlap(baddie, diamonds, killDiamond, null, this);
+	
+	game.physics.arcade.overlap(player, firstaids, playerAid, null, this);
+	game.physics.arcade.overlap(baddie, firstaids, baddieAid, null, this);
+	
+	game.physics.arcade.collide(player, baddie, fight, null, this);
+	
+	game.physics.arcade.collide(player, bullets, getHitByBullet, null, this);
+	
+    //  Reset the players velocity (movement)
+    player.body.velocity.x = 0;
+
+    if (cursors.left.isDown)
+    {
+        //  Move to the left
+        player.body.velocity.x = -250;
+
+        player.animations.play('left');
+    }
+    else if (cursors.right.isDown)
+    {
+        //  Move to the right
+        player.body.velocity.x = 250;
+
+        player.animations.play('right');
+    }
+	else if(cursors.down.isDown)
+	{
+		if(player.body.touching.down){
+			player.body.velocity.y = 0;
+		}
+		else{
+			player.body.velocity.y = 500;
+		}
+	}
+    else
+    {
+        //  Stand still
+        player.animations.stop();
+
+        player.frame = 4;
+    }
+    
+	if (game.input.keyboard.isDown(Phaser.Keyboard.A))
+    {
+        //  Move to the left
+        baddie.body.velocity.x = -150;
+		baddieLeft = true;
+        baddie.animations.play('left');
+    }
+    else if (game.input.keyboard.isDown(Phaser.Keyboard.D))
+    {
+        //  Move to the right
+        baddie.body.velocity.x = 150;
+		baddieLeft = false;
+        baddie.animations.play('right');
+    }
+	else if(game.input.keyboard.isDown(Phaser.Keyboard.S))
+	{
+		baddie.body.velocity.y = 500;
+		baddie.animations.stop();
+		if(baddieLeft){
+			baddie.frame = 1;
+		}
+		else{
+			baddie.frame = 2;
+		}
+	}
+	else{
+		baddie.animations.stop();
+		baddie.body.velocity.x = 0;
+		
+		if(baddieLeft){
+			baddie.frame = 1;
+		}
+		else{
+			baddie.frame = 2;
+		}
+	}
+	
+    //  Allow the player to jump if they are touching the ground.
+    if (cursors.up.isDown && player.body.touching.down)
+    {
+        player.body.velocity.y = -350;
+    }
+	
+	if(game.input.keyboard.isDown(Phaser.Keyboard.W) && baddie.body.touching.down)
+	{
+		baddie.body.velocity.y = -350;
+	}
+	
+	if(game.input.keyboard.isDown(Phaser.Keyboard.F))
+	{
+		fireBullet();
+	}
+
+}
+
+function fireBullet(){
+		if(baddieAmmo > 0){
+
+		var bullet = bullets.create(baddie.body.position.x, baddie.body.position.y, 'bullet');
+
+		if(baddieLeft){
+			bullet.body.velocity.x = -400;
+		}
+		else{
+			bullet.body.velocity.x = + 400;
+		}
+		
+		   bullet.events.onOutOfBounds.add(killBullet, this);
+   bullet.checkWorldBounds = true;
+		
+				baddieAmmo--;
+		baddieAmmoText.text = 'baddieAmmo: ' + baddieAmmo;
+		}
+		
+
+}
+
+function killBullet(bullet)
+{
+	bullet.kill();
+}
+
+function getHitByBullet(player, bullet){
+		health -= 5;
+	if(health <= 0){
+		health = 0;
+		player.kill();
+	}
+	bullet.kill();
+	healthText.text = 'health: ' + health;
+}
+
+function killStar (baddie, star){
+	baddieAmmo++;
+	
+	baddieAmmoText.text = 'baddieAmmo: ' + baddieAmmo;
+	
+	star.kill();
+}
+
+function collectStar (player, star) {
+    
+    // Removes the star from the screen
+    star.kill();
+
+    //  Add and update the score
+    score += 1;
+    scoreText.text = 'starPower: ' + score;
+
+}
+
+function killDiamond (baddie, diamond){
+	baddieAmmo+=10;
+	
+	baddieAmmoText.text = 'baddieAmmo: ' + baddieAmmo;
+	
+	diamond.kill();
+}
+
+function collectDiamond (player, diamond) {
+    
+    // Removes the star from the screen
+    diamond.kill();
+
+    //  Add and update the score
+    score += 10;
+    scoreText.text = 'starPower: ' + score;
+
+}
+
+function playerAid(player, firstaid)
+{
+	firstaid.kill();
+	health += 10;
+		healthText.text = 'health: ' + health;
+}
+
+function baddieAid(baddies, firstaid)
+{
+firstaid.kill();
+	baddieHealth += 50;
+		baddieHealthText.text = 'baddieHealth: ' + baddieHealth;
+}
+
+function fight (player, baddie){
+	if(baddie.body.touching.up){
+		baddieHealth -= (score + 1);
+	}
+	else{
+		health -= 1;
+	}
+	if(health == 0){
+		player.kill();
+	}
+	if(baddieHealth <= 0){
+		baddieHealth = 0;
+		baddie.kill();
+	}
+	healthText.text = 'health: ' + health;
+	baddieHealthText.text = 'baddieHealth: ' + baddieHealth;
+}
+
+</script>
+
+</body>
+</html>
